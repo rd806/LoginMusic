@@ -30,6 +30,8 @@ public class ClientConfig {
     public static ForgeConfigSpec.ConfigValue<Integer> LYRIC_COLOR;
     // 是否播放来自其他玩家的音频
     public static ForgeConfigSpec.BooleanValue ALLOW_OTHERS_MUSIC;
+    // 播放入场音乐时是否静音原版背景音乐
+    public static ForgeConfigSpec.BooleanValue MUTE_VANILLA_MUSIC;
     // 缓存容量
     public static ForgeConfigSpec.ConfigValue<Integer> CACHE_SIZE;
 
@@ -50,6 +52,10 @@ public class ClientConfig {
                 .comment("Whether to play musics from other players")
                 .translation("config.loginmusic.music.allow_others")
                 .define("AllowOthersMusic", false);
+        MUTE_VANILLA_MUSIC = BUILDER
+                .comment("Whether to mute Minecraft's background music while login music is playing")
+                .translation("config.loginmusic.music.mute_vanilla")
+                .define("MuteVanillaMusic", true);
         CACHE_SIZE = BUILDER
                 .comment("The maximum number of cache entries")
                 .translation("config.loginmusic.music.cache_size")

@@ -33,7 +33,6 @@ public class ClientSetup {
                     () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) ->
                             ClothConfigGUI.buildScreen().setParentScreen(parent).build()));
         }
-        LyricLayer.setLyric(ClientConfig.LYRIC_POS.get(), ClientConfig.LYRIC_COLOR.get());
-        LoginMusic.LOGGER.info("Start LoginMusic on client!");
+        LyricLayer.setLyricLayer(ClientConfig.LYRIC_POS.get(), ClientConfig.LYRIC_COLOR.get());
     }
 }

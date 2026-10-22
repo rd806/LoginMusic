@@ -1,6 +1,6 @@
 package com.github.rd806.loginmusic.compat.cloth;
 
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.config.ClientConfig;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.media.layer.LyricLayer;
@@ -38,7 +38,7 @@ public class ClothConfigGUI {
         builder.setSavingRunnable(() -> {
             // 保存并触发 MusicConfig 重载
             MusicConfig.saveToFile();
-            LyricLayer.setLyric(ClientConfig.LYRIC_POS.get(), ClientConfig.LYRIC_COLOR.get());
+            LyricLayer.setLyricLayer(ClientConfig.LYRIC_POS.get(), ClientConfig.LYRIC_COLOR.get());
         });
 
         return builder;
@@ -146,6 +146,13 @@ public class ClothConfigGUI {
                         .setDefaultValue(false)
                         .setTooltip(Component.translatable("config.loginmusic.music.allow_others.tooltip"))
                         .setSaveConsumer(allowOthersMusic -> ClientConfig.ALLOW_OTHERS_MUSIC.set(allowOthersMusic))
+                        .build());
+        // 播放入场音乐时是否静音原版背景音乐
+        clientSettings.addEntry(
+                entryBuilder.startBooleanToggle(Component.translatable("config.loginmusic.music.mute_vanilla"), ClientConfig.MUTE_VANILLA_MUSIC.get())
+                        .setDefaultValue(true)
+                        .setTooltip(Component.translatable("config.loginmusic.music.mute_vanilla.tooltip"))
+                        .setSaveConsumer(muteVanilla -> ClientConfig.MUTE_VANILLA_MUSIC.set(muteVanilla))
                         .build());
         // 歌曲缓存大小
         clientSettings.addEntry(

@@ -1,13 +1,12 @@
 package com.github.rd806.loginmusic.event;
 
-import com.github.rd806.loginmusic.SelectionKey;
 import com.github.rd806.loginmusic.config.ClientConfig;
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.media.load.LoadMethod;
 import com.github.rd806.loginmusic.media.load.LoadScreen;
 import com.github.rd806.loginmusic.media.layer.MusicInfo;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
-import com.github.rd806.loginmusic.media.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -42,7 +41,7 @@ public class ClientEvent {
         switch (key) {
             case NAME -> isOwnMusic = musicId.equalsIgnoreCase(player.getName().getString()) || musicId.equalsIgnoreCase("Default");
             case UUID -> isOwnMusic = musicId.equalsIgnoreCase(player.getUUID().toString())  || musicId.equalsIgnoreCase("Default");
-            case RANDOM -> isOwnMusic = true;
+            case RANDOM, DEFAULT -> isOwnMusic = true;
         }
 
         // 不是则进入判断

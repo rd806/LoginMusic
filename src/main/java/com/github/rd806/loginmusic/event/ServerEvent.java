@@ -1,11 +1,11 @@
 package com.github.rd806.loginmusic.event;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.media.music.MusicConfig;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import com.github.rd806.loginmusic.network.NetworkConfig;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
@@ -23,25 +23,27 @@ public class ServerEvent {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             // 根据选择的键获取音乐
             SelectionKey key = ServerConfig.MUSIC_ID_TYPE.get();
-            MusicEntry entry = chooseMusic(serverPlayer, key);
+            MusicEntry music = chooseMusic(serverPlayer, key);
             // 判空
-            if (entry == null) {
+            if (music == null) {
                 LoginMusic.LOGGER.error("Can't find correct music!");
                 return;
             }
-            playMusic(entry, serverPlayer, key);
+            playMusic(music, serverPlayer, key);
         } else {
             LoginMusic.LOGGER.error("Not a player {} !", event.getEntity().getName());
         }
     }
 
-    public static void playMusic(MusicEntry entry, ServerPlayer player, SelectionKey key) {
+    public static void playMusic(MusicEntry music, ServerPlayer player, SelectionKey key) {
         MinecraftServer server = player.getServer();
         // 将音乐发送给全体玩家
         if (server != null) {
             PlayerList playerList = server.getPlayerList();
             for (ServerPlayer target : playerList.getPlayers()) {
-                NetworkConfig.sendMusicToPlayer(target, entry, key);
+                BlockPos pos = target.blockPosition();
+                LoginMusic.LOGGER.info("Send music {} to {}", music.getMusicName(), player.getName().getString());
+                NetworkConfig.sendMusicToPlayer(target, pos, music, key);
             }
         }
     }
@@ -53,6 +55,7 @@ public class ServerEvent {
             case NAME -> result = chooseMusicByName(player);
             case UUID -> result = chooseMusicByUuid(player);
             case RANDOM -> result = chooseRandomMusic();
+            case DEFAULT -> result = MusicConfig.getDefaultMusic();
         }
         if (result == null) {
             result = MusicConfig.getDefaultMusic();

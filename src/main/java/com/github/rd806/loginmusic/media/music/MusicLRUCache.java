@@ -1,4 +1,4 @@
-package com.github.rd806.loginmusic;
+package com.github.rd806.loginmusic.media.music;
 
 import com.github.rd806.loginmusic.config.ClientConfig;
 

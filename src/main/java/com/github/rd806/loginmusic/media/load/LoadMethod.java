@@ -1,8 +1,8 @@
 package com.github.rd806.loginmusic.media.load;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.media.PreparedAudio;
-import com.github.rd806.loginmusic.media.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.media.audio.PreparedAudio;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
 import com.github.rd806.loginmusic.media.layer.MusicInfo;
 import com.github.rd806.loginmusic.media.music.MusicCache;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
@@ -280,8 +280,8 @@ public class LoadMethod {
 
     // 停止加载线程
     public static void stopDownloading() {
-        audioFuture.cancel(true);
-        lyricFuture.cancel(true);
+        if (audioFuture != null) { audioFuture.cancel(true); }
+        if (lyricFuture != null) { lyricFuture.cancel(true); }
         LoginMusic.LOGGER.info("Stop downloading!");
     }
 
@@ -291,26 +291,28 @@ public class LoadMethod {
             AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(inputStream);
             // 转换格式
             AudioFormat sourceFormat = audioInputStream.getFormat();
+            float sampleRate = sourceFormat.getSampleRate();
+            if (sampleRate <= 0) {
+                throw new UnsupportedAudioFileException("Unknown sample rate");
+            }
+            // Minecraft 的 OpenAL 只支持单声道/立体声的 16 位 PCM
+            int channels = Math.min(2, sourceFormat.getChannels());
             AudioFormat targetFormat = new AudioFormat(
                     AudioFormat.Encoding.PCM_SIGNED,
-                    sourceFormat.getSampleRate(),
+                    sampleRate,
                     16,
-                    sourceFormat.getChannels(),
-                    sourceFormat.getChannels() * 2,
-                    sourceFormat.getSampleRate(),
+                    channels,
+                    channels * 2,
+                    sampleRate,
                     false
             );
             if (!sourceFormat.matches(targetFormat)) {
                 audioInputStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream);
             }
-            DataLine.Info info = new DataLine.Info(Clip.class, targetFormat);
-            if (!AudioSystem.isLineSupported(info)) {
-                throw new UnsupportedAudioFileException("Audio format not supported");
-            }
-            // 预加载音频数据到字节数组，减少Clip.open()时间
+            // 预加载音频数据到字节数组，供 Minecraft 音频引擎流式读取
             byte[] audioData = audioInputStream.readAllBytes();
             LoginMusic.LOGGER.info("Audio data prepared!");
-            return new PreparedAudio(audioData, targetFormat, info);
+            return new PreparedAudio(audioData, targetFormat);
         } catch (UnsupportedAudioFileException e) {
             LoginMusic.LOGGER.error("Unsupported type: {}", e.getMessage());
             return null;

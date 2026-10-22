@@ -11,35 +11,30 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class LyricLayer {
 
+    private static final Minecraft mc = Minecraft.getInstance();
     private static String currentLyricText;
     private static int textColor;
     private static int yOffset;
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
-        if (currentLyricText == null) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (currentLyricText == null || mc.player == null) return;
 
         var guiGraphics = event.getGuiGraphics();
         int screenWidth = mc.getWindow().getGuiScaledWidth();
         int screenHeight = mc.getWindow().getGuiScaledHeight();
         // 计算文本位置（居中）
-        String text = currentLyricText;
-        int textWidth = mc.font.width(text);
-        int x = (screenWidth - textWidth) / 2;
-        // 高度为中心加上偏移量
-        int y = screenHeight/2 + (yOffset*screenHeight)/4;
+        int x = screenWidth / 2;
+        int y = screenHeight / 2 + (yOffset * screenHeight) / 4;
         // 绘制文本
-        guiGraphics.drawString(mc.font, text, x, y, textColor, false);
+        guiGraphics.drawCenteredString(mc.font, currentLyricText, x, y, textColor);
     }
 
     // 展示歌词
     public static void showLyric(String lyric) { currentLyricText = lyric; }
 
     // 设置歌词样式
-    public static void setLyric(Position pos, int hexColor) {
+    public static void setLyricLayer(Position pos, int hexColor) {
         textColor = hexColor;
         switch (pos) {
             case UP -> yOffset = -1;

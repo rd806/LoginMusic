@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.command;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.event.ServerEvent;
 import com.github.rd806.loginmusic.network.NetworkConfig;
@@ -26,6 +26,7 @@ public class LoginMusicCommand {
     private static final String STOP = "stop";
     private static final String LIST = "list";
     private static final String CACHE = "cache";
+    private static final String SHOW = "show";
     private static final String CLEAR = "clear";
     private static final String RELOAD = "reload";
 
@@ -36,13 +37,14 @@ public class LoginMusicCommand {
         LiteralArgumentBuilder<CommandSourceStack> stop = Commands.literal(STOP);
         LiteralArgumentBuilder<CommandSourceStack> list = Commands.literal(LIST);
         LiteralArgumentBuilder<CommandSourceStack> cache = Commands.literal(CACHE);
+        LiteralArgumentBuilder<CommandSourceStack> show = Commands.literal(SHOW);
         LiteralArgumentBuilder<CommandSourceStack> clear = Commands.literal(CLEAR);
         LiteralArgumentBuilder<CommandSourceStack> reload = Commands.literal(RELOAD);
 
         root.then(play.executes(LoginMusicCommand::playMusic));
         root.then(stop.executes(LoginMusicCommand::stopMusic));
         root.then(list.executes(LoginMusicCommand::showList));
-        root.then(cache.then(list.executes(LoginMusicCommand::showCache)));
+        root.then(cache.then(show.executes(LoginMusicCommand::showCache)));
         root.then(cache.then(clear.executes(LoginMusicCommand::clearCache)));
         root.then(reload.executes(LoginMusicCommand::reloadConfig));
         return root;
@@ -68,7 +70,7 @@ public class LoginMusicCommand {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.STOP_MUSIC);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.STOP_MUSIC);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error("Fail to stop music", e);
@@ -117,7 +119,7 @@ public class LoginMusicCommand {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.CACHE_LIST);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.CACHE_LIST);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error(e.getMessage());
@@ -130,7 +132,7 @@ public class LoginMusicCommand {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.CACHE_CLEAR);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.CACHE_CLEAR);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error(e.getMessage());

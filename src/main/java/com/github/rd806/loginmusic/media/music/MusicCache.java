@@ -1,7 +1,6 @@
 package com.github.rd806.loginmusic.media.music;
 
-import com.github.rd806.loginmusic.MusicLRUCache;
-import com.github.rd806.loginmusic.media.PreparedAudio;
+import com.github.rd806.loginmusic.media.audio.PreparedAudio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;

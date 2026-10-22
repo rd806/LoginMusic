@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.config;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.common.Mod;
 

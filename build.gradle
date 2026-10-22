@@ -100,8 +100,6 @@ dependencies {
     minecraftLibrary 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
     // Cloth Config api
     implementation fg.deobf("me.shedaniel.cloth:cloth-config-forge:11.1.136")
-    // Net Music
-    implementation fg.deobf("maven.modrinth:net-music:1.5.1-forge+mc1.20.1")
 }
 
 shadowJar {

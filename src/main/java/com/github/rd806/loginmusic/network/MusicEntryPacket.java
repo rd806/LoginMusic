@@ -1,6 +1,6 @@
 package com.github.rd806.loginmusic.network;
 
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.event.ClientEvent;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.core.BlockPos;
@@ -31,6 +31,7 @@ public class MusicEntryPacket {
         buf.writeUtf(music.getLyricPath());
         // 位置信息
         buf.writeLong(pos.asLong());
+        // 关键字
         buf.writeEnum(key);
     }
 

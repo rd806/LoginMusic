@@ -38,6 +38,8 @@
     "config.loginmusic.music.play_range.tooltip": "Music will stop if you are out of this range, set to 0 to disable range checking",
     "config.loginmusic.music.allow_others": "Play music from other players",
     "config.loginmusic.music.allow_others.tooltip": "If true, you will have to do music playing logic when other players join in the world",
+    "config.loginmusic.music.mute_vanilla": "Mute vanilla background music",
+    "config.loginmusic.music.mute_vanilla.tooltip": "Whether to mute Minecraft's own background music while login music is playing",
     "config.loginmusic.music.cache_size": "Cache size",
     "config.loginmusic.music.cache_size.tooltip": "Define how many musics will be cached during games",
 
