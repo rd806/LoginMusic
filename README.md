@@ -13,6 +13,7 @@ A simple Minecraft mod that can play music when players join in the world.
 | 1.2.1     | Music can be played directly through the Internet without downloading; lyrics support!       |
 | 1.2.2     | Audio backend loading, Players can receive audio from other players on the server.           | 
 | 1.2.6     | Add cache system. Refactor the code.                                                         | 
+| 2.0.0     | ModID changes to `loginmusic`; Using Minecraft Music Engine.                                 |
 
 The logo comes from [here](https://www.flaticon.com/free-icon/music_9325026?term=music&page=1&position=87&origin=search&related_id=9325026), designed by juicy_fish.
 
@@ -35,9 +36,9 @@ All music files are stored in the `/data/login_music` folder.
 ```
 {version folder}
 ├── config
-│   ├── login_music-music.json      # Specific musics
-│   ├── login_music-client.toml     # Client config    
-│   └── login_music-common.toml     # Common config   
+│   ├── loginmusic-music.json      # Specific musics
+│   ├── loginmusic-client.toml     # Client config    
+│   └── loginmusic-common.toml     # Common config   
 │
 ├── data/login_music        # Store music files
 │   ├── MusicsCache
@@ -60,7 +61,6 @@ If you enter a server with this mod, the config file on the server has higher pr
 ```json
 {
   "defaultMusic": {
-    "id": "Default",
     "musicName": "Default.mp3",
     "musicPath": "https://www.example.com/example.mp3",
     "lyricName": "Default.lrc",

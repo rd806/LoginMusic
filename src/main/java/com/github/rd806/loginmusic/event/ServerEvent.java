@@ -2,7 +2,7 @@ package com.github.rd806.loginmusic.event;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.config.ServerConfig;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
+import com.github.rd806.loginmusic.config.MusicConfig;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import com.github.rd806.loginmusic.network.NetworkConfig;
 import net.minecraft.core.BlockPos;
@@ -15,10 +15,13 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 import java.util.Random;
 
+/**
+ * 玩家登录事件，播放音乐
+ */
 @EventBusSubscriber(modid = LoginMusic.MODID)
 public class ServerEvent {
+
     @SubscribeEvent
-    // 玩家登录事件
     public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         // 服务端
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {

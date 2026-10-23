@@ -4,7 +4,7 @@ import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.config.ClientConfig;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.gui.LyricLayer;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
+import com.github.rd806.loginmusic.config.MusicConfig;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;

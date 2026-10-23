@@ -6,7 +6,7 @@ import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.event.ServerEvent;
 import com.github.rd806.loginmusic.network.NetworkConfig;
 import com.mojang.brigadier.Command;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
+import com.github.rd806.loginmusic.config.MusicConfig;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;

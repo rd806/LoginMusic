@@ -16,8 +16,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  */
 public class NetworkConfig {
 
-    public static final ResourceLocation CHANNEL_ID =
-            ResourceLocation.fromNamespaceAndPath(LoginMusic.MODID, "main");
+    public static final ResourceLocation CHANNEL_ID = ResourceLocation.fromNamespaceAndPath(LoginMusic.MODID, "main");
 
     // 注册网络音乐数据包
     public static void register(final RegisterPayloadHandlersEvent event) {
@@ -33,7 +32,7 @@ public class NetworkConfig {
     }
 
     // 发送音乐给特定玩家
-    public static void  sendMusicToPlayer(ServerPlayer player, BlockPos pos, MusicEntry music, SelectionKey key) {
+    public static void sendMusicToPlayer(ServerPlayer player, BlockPos pos, MusicEntry music, SelectionKey key) {
         // 发送数据包到客户端
         LoginMusic.LOGGER.info("Send music {} to {}", music.getMusicName(), player.getName().getString());
         PacketDistributor.sendToPlayer(player, new MusicEntryPacket(music, pos, key));

@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.setup;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
+import com.github.rd806.loginmusic.config.MusicConfig;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
