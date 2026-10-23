@@ -3,10 +3,10 @@ package com.github.rd806.loginmusic.media.audio;
 import net.minecraft.client.sounds.AudioStream;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.BufferUtils;
 
 import javax.sound.sampled.AudioFormat;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -29,12 +29,12 @@ public class PcmAudioStream implements AudioStream {
     }
 
     @Override
-    public AudioFormat getFormat() {
+    public @NotNull AudioFormat getFormat() {
         return format;
     }
 
     @Override
-    public ByteBuffer read(int size) throws IOException {
+    public ByteBuffer read(int size) {
         if (position >= data.length || size <= 0) {
             // 返回 null 表示流已结束，Channel 不会再向 OpenAL 提交新的缓冲区
             return null;

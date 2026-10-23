@@ -1,15 +1,17 @@
 package com.github.rd806.loginmusic.media.load;
 
 import com.github.rd806.loginmusic.LoginMusic;
+import com.github.rd806.loginmusic.gui.LoadScreen;
 import com.github.rd806.loginmusic.media.audio.PreparedAudio;
 import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
-import com.github.rd806.loginmusic.media.layer.MusicInfo;
+import com.github.rd806.loginmusic.gui.MusicInfo;
 import com.github.rd806.loginmusic.media.music.MusicCache;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 import javax.sound.sampled.*;
 import java.io.*;
@@ -21,6 +23,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 资源加载方法，新创建两个线程 {@code AUDIO_LOADER} 和 {@code LYRIC_LOADER}
+ */
 @OnlyIn(Dist.CLIENT)
 public class LoadMethod {
 
@@ -291,21 +296,7 @@ public class LoadMethod {
             AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(inputStream);
             // 转换格式
             AudioFormat sourceFormat = audioInputStream.getFormat();
-            float sampleRate = sourceFormat.getSampleRate();
-            if (sampleRate <= 0) {
-                throw new UnsupportedAudioFileException("Unknown sample rate");
-            }
-            // Minecraft 的 OpenAL 只支持单声道/立体声的 16 位 PCM
-            int channels = Math.min(2, sourceFormat.getChannels());
-            AudioFormat targetFormat = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    sampleRate,
-                    16,
-                    channels,
-                    channels * 2,
-                    sampleRate,
-                    false
-            );
+            AudioFormat targetFormat = getTargetFormat(sourceFormat);
             if (!sourceFormat.matches(targetFormat)) {
                 audioInputStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream);
             }
@@ -320,5 +311,23 @@ public class LoadMethod {
             LoginMusic.LOGGER.error("Fail to play music");
             return null;
         }
+    }
+
+    private static @NotNull AudioFormat getTargetFormat(AudioFormat sourceFormat) throws UnsupportedAudioFileException {
+        float sampleRate = sourceFormat.getSampleRate();
+        if (sampleRate <= 0) {
+            throw new UnsupportedAudioFileException("Unknown sample rate");
+        }
+        // Minecraft 的 OpenAL 只支持单声道/立体声的 16 位 PCM
+        int channels = Math.min(2, sourceFormat.getChannels());
+        return new AudioFormat(
+                AudioFormat.Encoding.PCM_SIGNED,
+                sampleRate,
+                16,
+                channels,
+                channels * 2,
+                sampleRate,
+                false
+        );
     }
 }

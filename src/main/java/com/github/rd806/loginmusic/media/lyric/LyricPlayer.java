@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.media.lyric;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.media.layer.LyricLayer;
+import com.github.rd806.loginmusic.gui.LyricLayer;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;

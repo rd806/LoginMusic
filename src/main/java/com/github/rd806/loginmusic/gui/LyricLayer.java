@@ -1,4 +1,4 @@
-package com.github.rd806.loginmusic.media.layer;
+package com.github.rd806.loginmusic.gui;
 
 import com.github.rd806.loginmusic.config.ClientConfig.Position;
 import net.minecraft.client.Minecraft;
@@ -7,7 +7,9 @@ import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-// 显示歌词的专用区域
+/**
+ * 显示歌词的专用区域
+ */
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class LyricLayer {
 

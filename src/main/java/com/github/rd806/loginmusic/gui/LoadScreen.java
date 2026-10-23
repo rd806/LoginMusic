@@ -1,4 +1,4 @@
-package com.github.rd806.loginmusic.media.load;
+package com.github.rd806.loginmusic.gui;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.media.music.MusicEntry;

@@ -1,16 +1,10 @@
 package com.github.rd806.loginmusic;
 
-import com.github.rd806.loginmusic.command.LoginMusicCommand;
 import com.mojang.logging.LogUtils;
 import com.github.rd806.loginmusic.config.ClientConfig;
 import com.github.rd806.loginmusic.config.ServerConfig;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
-import com.github.rd806.loginmusic.network.NetworkConfig;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
@@ -34,22 +28,9 @@ public class LoginMusic {
 
     public LoginMusic(FMLJavaModLoadingContext context) {
         fmlContext = context;
-        IEventBus modEventBus = context.getModEventBus();
-        // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
-        // 注册网络
-        NetworkConfig.register();
-        // Register ourselves for server and other game events we are interested in
-        MinecraftForge.EVENT_BUS.register(new LoginMusicCommand());
         // 生成配置文件
         context.registerConfig(ModConfig.Type.CLIENT, ClientConfig.init());
         context.registerConfig(ModConfig.Type.COMMON, ServerConfig.init());
-    }
-
-    private void commonSetup(final FMLCommonSetupEvent event) {
-        // 加载音乐配置
-        MusicConfig.loadFromConfig();
-        LOGGER.info("[LoginMusic] If you have any issues with LoginMusic, please report it at https://github.com/rd806/LoginMusic!");
     }
 
     // 去除文件扩展名

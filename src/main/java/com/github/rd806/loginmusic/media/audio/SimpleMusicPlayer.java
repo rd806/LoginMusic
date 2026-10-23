@@ -2,7 +2,7 @@ package com.github.rd806.loginmusic.media.audio;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.config.ClientConfig;
-import com.github.rd806.loginmusic.media.layer.MusicInfo;
+import com.github.rd806.loginmusic.gui.MusicInfo;
 import com.github.rd806.loginmusic.media.load.LoadMethod;
 import com.github.rd806.loginmusic.media.lyric.LyricEntry;
 import com.github.rd806.loginmusic.media.lyric.LyricParser;
@@ -115,16 +115,14 @@ public class SimpleMusicPlayer {
             return;
         }
         // 声道已停止，说明音乐自然播放结束
-        finishMusic(true);
+        finishMusic();
     }
 
     // 播放结束后停止音乐
-    private static void finishMusic(boolean notify) {
+    private static void finishMusic() {
         stopMusic();
-        if (notify && mc.player != null) {
-            mc.player.displayClientMessage(
-                    Component.translatable("message.loginmusic.play.ended", musicName),
-                    true);
+        if (mc.player != null) {
+            mc.player.displayClientMessage(Component.translatable("message.loginmusic.play.ended", musicName), true);
         }
     }
 
