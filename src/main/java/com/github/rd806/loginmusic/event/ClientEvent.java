@@ -1,12 +1,11 @@
 package com.github.rd806.loginmusic.event;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
 import com.github.rd806.loginmusic.config.ClientConfig;
-import com.github.rd806.loginmusic.media.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
 import com.github.rd806.loginmusic.media.load.LoadMethod;
-import com.github.rd806.loginmusic.media.load.LoadScreen;
-import com.github.rd806.loginmusic.media.layer.MusicInfo;
+import com.github.rd806.loginmusic.gui.LoadScreen;
+import com.github.rd806.loginmusic.gui.MusicInfo;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -32,37 +31,38 @@ public class ClientEvent {
     public static void playLoginMusic(MusicEntry music, BlockPos blockPos, SelectionKey key) {
         Player player = mc.player;
         if (player == null) return;
-        pos = blockPos;
-        // 当前有正在播放的音乐也跳过
-        if (!SimpleMusicPlayer.isStopped()) { return; }
 
+        pos = blockPos;
+        // 当前有正在播放的音乐跳过
+        if (SimpleMusicPlayer.isPlaying()) { return; }
         // 判断是否为来自其他玩家的音乐
         String musicId = music.getId();
         boolean isOwnMusic = false;
         switch (key) {
             case NAME -> isOwnMusic = musicId.equalsIgnoreCase(player.getName().getString()) || musicId.equalsIgnoreCase("Default");
             case UUID -> isOwnMusic = musicId.equalsIgnoreCase(player.getUUID().toString())  || musicId.equalsIgnoreCase("Default");
-            case RANDOM -> isOwnMusic = true;
+            case RANDOM, DEFAULT -> isOwnMusic = true;
         }
 
-        // 是否为来自其他玩家的音乐
+        // 不是则进入判断
         if (!isOwnMusic) {
             // 设置为不允许则跳过
             if (!ClientConfig.ALLOW_OTHERS_MUSIC.get()) {
-                mc.player.displayClientMessage(
-                        Component.translatable("message.loginmusic.play.not_allow_others", musicId), false);
+                player.displayClientMessage(
+                        Component.translatable("message.loginmusic.play.not_allow_others", musicId),
+                        false);
                 return;
             }
             // 播放来自其他玩家的音乐
-            mc.player.displayClientMessage(
-                    Component.translatable("message.loginmusic.play.others", musicId), false);
+            player.displayClientMessage(
+                    Component.translatable("message.loginmusic.play.others", musicId),
+                    false);
         }
 
         // 启用下载模式
         mc.execute(() -> {
-            // 创建下载界面
+            // 创建并显示下载界面
             LoadScreen screen = new LoadScreen(music, () -> mc.execute(() -> mc.setScreen(null)));
-            // 显示加载界面
             if (ClientConfig.SHOW_LOADING.get()) {
                 mc.setScreen(screen);
             }
@@ -71,39 +71,36 @@ public class ClientEvent {
         });
     }
 
+    // 玩家退出世界则停止播放
+    @SubscribeEvent
+    public static void checkLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        SimpleMusicPlayer.stopCurrentMusic();
+        LoginMusic.LOGGER.info("Player exits the world, stop playing!");
+    }
+
     // 检测玩家移动
     @SubscribeEvent
     public static void checkMove(ClientTickEvent.Post event) {
         // 已经停止则不再检测
-        if (SimpleMusicPlayer.isStopped() || ClientConfig.MUSIC_PLAY_RANGE.get() == 0) return;
+        if (!SimpleMusicPlayer.isPlaying() || ClientConfig.MUSIC_PLAY_RANGE.get() == 0) return;
 
         LocalPlayer player = mc.player;
         if (player == null) return;
-        // 获取玩家坐标
+
         double lastX = pos.getX();
         double lastY = pos.getY();
         double lastZ = pos.getZ();
 
-        boolean outOfRange = (Math.abs(player.getX() - lastX) > ClientConfig.MUSIC_PLAY_RANGE.get())
-                            || Math.abs(player.getY() - lastY) > ClientConfig.MUSIC_PLAY_RANGE.get()
-                            || Math.abs(player.getZ() - lastZ) > ClientConfig.MUSIC_PLAY_RANGE.get();
-
         // 检测移动范围
+        int range = ClientConfig.MUSIC_PLAY_RANGE.get();
+        boolean outOfRange = Math.abs(player.getX() - lastX) > range ||
+                Math.abs(player.getY() - lastY) > range || Math.abs(player.getZ() - lastZ) > range;
+
         if (outOfRange) {
-            SimpleMusicPlayer.stopMusic();
+            SimpleMusicPlayer.stopCurrentMusic();
             mc.player.displayClientMessage(
                     Component.translatable("message.loginmusic.play.out_of_range"),
-                    false
-            );
+                    false);
         }
-    }
-
-    // 检测退出世界操作
-    @SubscribeEvent
-    public static void checkLogout(ClientPlayerNetworkEvent.LoggingOut event) {
-        if (SimpleMusicPlayer.isStopped()) return;
-        LoginMusic.LOGGER.info("Player exits the world, stop playing!");
-        // 解决玩家退出世界仍播放音乐的问题
-        SimpleMusicPlayer.stopCurrentMusic();
     }
 }

@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.network;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.event.ClientEvent;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.core.BlockPos;

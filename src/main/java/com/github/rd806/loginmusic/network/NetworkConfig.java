@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.network;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.command.CommandType;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.core.BlockPos;
@@ -11,7 +11,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-// 网络包类
+/**
+ * 网络包类
+ */
 public class NetworkConfig {
 
     public static final ResourceLocation CHANNEL_ID =
@@ -31,14 +33,14 @@ public class NetworkConfig {
     }
 
     // 发送音乐给特定玩家
-    public static void sendMusicToPlayer(ServerPlayer player, BlockPos pos, MusicEntry music, SelectionKey key) {
+    public static void  sendMusicToPlayer(ServerPlayer player, BlockPos pos, MusicEntry music, SelectionKey key) {
         // 发送数据包到客户端
         LoginMusic.LOGGER.info("Send music {} to {}", music.getMusicName(), player.getName().getString());
         PacketDistributor.sendToPlayer(player, new MusicEntryPacket(music, pos, key));
     }
 
     // 查看本地缓存
-    public static void showPlayerMusicCache(ServerPlayer player, CommandType type) {
+    public static void sendClientCommand(ServerPlayer player, CommandType type) {
         PacketDistributor.sendToPlayer(player, new MusicCommandPacket(type));
     }
 }

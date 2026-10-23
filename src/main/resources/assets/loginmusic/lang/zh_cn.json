@@ -38,6 +38,8 @@
     "config.loginmusic.music.play_range.tooltip": "超出该范围则停止播放，设置为 0 则禁用",
     "config.loginmusic.music.allow_others": "播放来自其他玩家的音乐",
     "config.loginmusic.music.allow_others.tooltip": "如果为是，则当其他玩家加入世界时也需要执行播放音乐操作",
+    "config.loginmusic.music.mute_vanilla": "静音原版背景音乐",
+    "config.loginmusic.music.mute_vanilla.tooltip": "播放入场音乐时是否静音 Minecraft 自带的背景音乐",
     "config.loginmusic.music.cache_size": "缓存大小",
     "config.loginmusic.music.cache_size.tooltip": "游戏过程中可缓存的音乐数量",
 

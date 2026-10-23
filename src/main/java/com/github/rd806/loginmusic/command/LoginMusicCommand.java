@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.command;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
+import com.github.rd806.loginmusic.event.SelectionKey;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.event.ServerEvent;
 import com.github.rd806.loginmusic.network.NetworkConfig;
@@ -44,7 +44,7 @@ public class LoginMusicCommand {
         root.then(play.executes(LoginMusicCommand::playMusic));
         root.then(stop.executes(LoginMusicCommand::stopMusic));
         root.then(list.executes(LoginMusicCommand::showList));
-        root.then(cache.then(show.executes(LoginMusicCommand::listCache)));
+        root.then(cache.then(show.executes(LoginMusicCommand::showCache)));
         root.then(cache.then(clear.executes(LoginMusicCommand::clearCache)));
         root.then(reload.executes(LoginMusicCommand::reloadConfig));
         return root;
@@ -70,7 +70,7 @@ public class LoginMusicCommand {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.STOP_MUSIC);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.STOP_MUSIC);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error("Fail to stop music", e);
@@ -83,14 +83,10 @@ public class LoginMusicCommand {
         try {
             // 显示音乐主键
             SelectionKey key = ServerConfig.MUSIC_ID_TYPE.get();
-            String keyName = "";
-            switch (key) {
-                case UUID -> keyName = "UUID";
-                case NAME -> keyName = "Name";
-                case RANDOM -> keyName = "Random";
-            }
-            Component message = Component.translatable("message.loginmusic.command.list.key", keyName);
-            context.getSource().sendSuccess(() -> message, false);
+            context.getSource().sendSuccess(
+                    () -> Component.translatable("message.loginmusic.command.list.key", key),
+                    false
+            );
             // 默认音乐
             MusicEntry defaultMusic = MusicConfig.getDefaultMusic();
             context.getSource().sendSuccess(
@@ -119,11 +115,11 @@ public class LoginMusicCommand {
     }
 
     // 显示缓存
-    private static int listCache(CommandContext<CommandSourceStack> context) {
+    private static int showCache(CommandContext<CommandSourceStack> context) {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.CACHE_LIST);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.CACHE_LIST);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error(e.getMessage());
@@ -136,7 +132,7 @@ public class LoginMusicCommand {
         try {
             ServerPlayer serverPlayer = context.getSource().getPlayer();
             if (serverPlayer != null) {
-                NetworkConfig.showPlayerMusicCache(serverPlayer, CommandType.CACHE_CLEAR);
+                NetworkConfig.sendClientCommand(serverPlayer, CommandType.CACHE_CLEAR);
             }
         } catch (Exception e) {
             LoginMusic.LOGGER.error(e.getMessage());

@@ -2,7 +2,7 @@ package com.github.rd806.loginmusic.network;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.command.CommandType;
-import com.github.rd806.loginmusic.media.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
 import com.github.rd806.loginmusic.media.music.MusicCache;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

@@ -1,7 +1,6 @@
 package com.github.rd806.loginmusic.event;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.SelectionKey;
 import com.github.rd806.loginmusic.config.ServerConfig;
 import com.github.rd806.loginmusic.media.music.MusicConfig;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
@@ -53,6 +52,7 @@ public class ServerEvent {
             case NAME -> result = chooseMusicByName(player);
             case UUID -> result = chooseMusicByUuid(player);
             case RANDOM -> result = chooseRandomMusic();
+            case DEFAULT -> result = MusicConfig.getDefaultMusic();
         }
         if (result == null) {
             result = MusicConfig.getDefaultMusic();

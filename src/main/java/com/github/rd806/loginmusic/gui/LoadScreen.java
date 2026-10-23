@@ -1,4 +1,4 @@
-package com.github.rd806.loginmusic.media.load;
+package com.github.rd806.loginmusic.gui;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
@@ -87,7 +87,7 @@ public class LoadScreen extends Screen {
             case DOWNLOAD -> renderLyricDownload(graphics, centerX);
         }
         // 自动关闭
-        if (!(audioStatus.equals(Status.DOWNLOAD) || lyricStatus.equals(Status.DOWNLOAD))) {
+        if (audioStatus.equals(Status.COMPLETED) && lyricStatus.equals(Status.COMPLETED)) {
             onComplete.run();
         }
     }

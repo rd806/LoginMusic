@@ -1,13 +1,17 @@
 package com.github.rd806.loginmusic.media.load;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.media.PreparedAudio;
-import com.github.rd806.loginmusic.media.SimpleMusicPlayer;
-import com.github.rd806.loginmusic.media.layer.MusicInfo;
+import com.github.rd806.loginmusic.gui.LoadScreen;
+import com.github.rd806.loginmusic.media.audio.PreparedAudio;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.gui.MusicInfo;
 import com.github.rd806.loginmusic.media.music.MusicCache;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 import javax.sound.sampled.*;
 import java.io.ByteArrayInputStream;
@@ -22,6 +26,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 资源加载方法，新创建两个线程 {@code AUDIO_LOADER} 和 {@code LYRIC_LOADER}
+ */
+@OnlyIn(Dist.CLIENT)
 public class LoadMethod {
 
     private static final Minecraft mc = Minecraft.getInstance();
@@ -46,6 +54,7 @@ public class LoadMethod {
     private static CompletableFuture<Void> audioFuture;
     private static CompletableFuture<Void> lyricFuture;
 
+    /* ----- 音乐下载方法 ----- */
     // 开始下载
     public static void startDownload(MusicEntry music, LoadScreen screen) {
         loadScreen = screen;
@@ -57,7 +66,7 @@ public class LoadMethod {
             mc.execute(() -> screen.updateAudioProgress(progress, status));
         }), AUDIO_LOADER);  // 使用 AUDIO_LOADER 作为执行器
 
-        lyricFuture = CompletableFuture.runAsync(() -> lyric = downloadLyric(music, (downloaded, total, progress) -> {
+        lyricFuture = CompletableFuture.runAsync(() -> lyric = downloadLyrics(music, (downloaded, total, progress) -> {
             Component status = Component.translatable("gui.loginmusic.load.progress.lyric",
                     String.format("%.1f", downloaded / 1024.0 / 1024.0),
                     String.format("%.1f", total / 1024.0 / 1024.0));
@@ -73,7 +82,7 @@ public class LoadMethod {
                         if (audio != null) {
                             SimpleMusicPlayer.playMusic(music, audio, lyric);
                         } else {
-                            LoginMusic.LOGGER.error("Could not load music or lyrics!");
+                            LoginMusic.LOGGER.error("Could not load music!");
                             MusicInfo.stopMusicInfo();
                         }
                     });
@@ -100,10 +109,10 @@ public class LoadMethod {
             connection.setReadTimeout(30000);
             connection.setRequestProperty("User-Agent", "LoginMusic");
             return connection;
-        } catch (Exception e) {
-            LoginMusic.LOGGER.error("Failed to open URL", e);
-            return null;
+        } catch (Exception ex) {
+            LoginMusic.LOGGER.error("Failed to open URL", ex);
         }
+        return null;
     }
 
     // 音乐下载方法
@@ -121,27 +130,32 @@ public class LoadMethod {
             // 检查缓存，命中直接返回
             Path cacheFile = LoginMusic.MUSICS_DIR.resolve(name);
             if (isDownloaded(cacheFile, callback)) {
-                LoginMusic.LOGGER.info("Music has been downloaded!");
+                LoginMusic.LOGGER.info("The file has been downloaded!");
                 // 读取文件所有字节到 byte[]
                 byte[] data = Files.readAllBytes(cacheFile);
+                // 检查文件
+                if (!TypeDetector.isAudioMagic(data, data.length)) {
+                    LoginMusic.LOGGER.warn("Not an audio file!");
+                    mc.execute(() -> loadScreen.setAudioError("Not an audio file!"));
+                    return null;
+                }
                 // 包装为 ByteArrayInputStream
                 ByteArrayInputStream bais = new ByteArrayInputStream(data);
                 audio = prepareAudio(bais);
                 MusicCache.putMusic(path, audio);
                 mc.execute(loadScreen::setAudioCompleted);
-
                 return audio;
             }
 
             // 从网络加载
             LoginMusic.LOGGER.info("Start downloading music from {}", path);
             URLConnection connection = openConnection(path);
-            // 获取文件大小
             if (connection == null) {
                 LoginMusic.LOGGER.error("Audio network connection error!");
                 mc.execute(() -> loadScreen.setAudioError("Downloading error!"));
                 return null;
             }
+            // 获取文件大小
             long totalBytes = connection.getContentLengthLong();
             LoginMusic.LOGGER.info("Music size: {} bytes", totalBytes);
 
@@ -164,13 +178,13 @@ public class LoadMethod {
             }
             // 转换为输入流
             byte[] data = baos.toByteArray();
-            // 检查文件类型
+            // 检查文件
             if (!TypeDetector.isAudioMagic(data, data.length)) {
                 LoginMusic.LOGGER.warn("Not an audio file!");
                 mc.execute(() -> loadScreen.setAudioError("Not an audio file!"));
                 return null;
             }
-
+            // 移除下载到本地功能
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             LoginMusic.LOGGER.info("Downloading music completed, total {} bytes", downloadedBytes);
             audio = prepareAudio(bais);
@@ -186,11 +200,12 @@ public class LoadMethod {
     }
 
     // 歌词下载方法
-    private static String downloadLyric(MusicEntry music, DownloadCallback callback) {
+    private static String downloadLyrics(MusicEntry music, DownloadCallback callback) {
         String name = music.getLyricName();
         String path = music.getLyricPath();
         try {
             String lyric = MusicCache.getLyric(path);
+
             if (lyric != null) {
                 mc.execute(loadScreen::setLyricCompleted);
                 return lyric;
@@ -221,6 +236,7 @@ public class LoadMethod {
                 return null;
             }
 
+            // 获取文件大小
             long totalBytes = connection.getContentLengthLong();
             LoginMusic.LOGGER.info("Lyrics size: {} bytes", totalBytes);
 
@@ -247,7 +263,6 @@ public class LoadMethod {
             MusicCache.putLyric(path, lyric);
             LoginMusic.LOGGER.info("Downloading lyric completed, total {} bytes", downloadedBytes);
             mc.execute(loadScreen::setLyricCompleted);
-
             return lyric;
         } catch (Exception e) {
             LoginMusic.LOGGER.warn("Downloading lyric error!", e);
@@ -273,8 +288,8 @@ public class LoadMethod {
 
     // 停止加载线程
     public static void stopDownloading() {
-        audioFuture.cancel(true);
-        lyricFuture.cancel(true);
+        if (audioFuture != null) { audioFuture.cancel(true); }
+        if (lyricFuture != null) { lyricFuture.cancel(true); }
         LoginMusic.LOGGER.info("Stop downloading!");
     }
 
@@ -284,26 +299,14 @@ public class LoadMethod {
             AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(inputStream);
             // 转换格式
             AudioFormat sourceFormat = audioInputStream.getFormat();
-            AudioFormat targetFormat = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    sourceFormat.getSampleRate(),
-                    16,
-                    sourceFormat.getChannels(),
-                    sourceFormat.getChannels() * 2,
-                    sourceFormat.getSampleRate(),
-                    false
-            );
+            AudioFormat targetFormat = getTargetFormat(sourceFormat);
             if (!sourceFormat.matches(targetFormat)) {
                 audioInputStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream);
             }
-            DataLine.Info info = new DataLine.Info(Clip.class, targetFormat);
-            if (!AudioSystem.isLineSupported(info)) {
-                throw new UnsupportedAudioFileException("Audio format not supported");
-            }
-            // 预加载音频数据到字节数组，减少Clip.open()时间
+            // 预加载音频数据到字节数组，供 Minecraft 音频引擎流式读取
             byte[] audioData = audioInputStream.readAllBytes();
             LoginMusic.LOGGER.info("Audio data prepared!");
-            return new PreparedAudio(audioData, targetFormat, info);
+            return new PreparedAudio(audioData, targetFormat);
         } catch (UnsupportedAudioFileException e) {
             LoginMusic.LOGGER.error("Unsupported type: {}", e.getMessage());
             return null;
@@ -311,5 +314,23 @@ public class LoadMethod {
             LoginMusic.LOGGER.error("Fail to play music");
             return null;
         }
+    }
+
+    private static @NotNull AudioFormat getTargetFormat(AudioFormat sourceFormat) throws UnsupportedAudioFileException {
+        float sampleRate = sourceFormat.getSampleRate();
+        if (sampleRate <= 0) {
+            throw new UnsupportedAudioFileException("Unknown sample rate");
+        }
+        // Minecraft 的 OpenAL 只支持单声道/立体声的 16 位 PCM
+        int channels = Math.min(2, sourceFormat.getChannels());
+        return new AudioFormat(
+                AudioFormat.Encoding.PCM_SIGNED,
+                sampleRate,
+                16,
+                channels,
+                channels * 2,
+                sampleRate,
+                false
+        );
     }
 }
