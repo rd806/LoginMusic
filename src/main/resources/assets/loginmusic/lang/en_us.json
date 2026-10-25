@@ -25,6 +25,7 @@
     "gui.loginmusic.load.tooltip": "Press ESC to load music in the background",
     "gui.loginmusic.load.progress.music": "Downloading music ... %.1f MB / %.1f MB",
     "gui.loginmusic.load.progress.lyric": "Downloading lyric ... %.1f MB / %.1f MB",
+    "gui.loginmusic.load.buffering": "Buffering music ... %s",
 
     "gui.loginmusic.info.prepare": "Preparing: %s (%.1f%%)",
     "gui.loginmusic.info.play": "Playing: %s",
@@ -53,6 +54,8 @@
 
     "config.loginmusic.music.id": "Keywords for music selection",
     "config.loginmusic.music.id.tooltip": "Available: NAME, UUID, RANDOM",
+    "config.loginmusic.music.broadcast": "Broadcast login music",
+    "config.loginmusic.music.broadcast.tooltip": "Whether to broadcast login music to every player when a new one join in",
 
     "message.loginmusic.command.cache.music.empty": "Music cache is empty!",
     "message.loginmusic.command.cache.music.info": "The music cache is below:",
@@ -74,5 +77,6 @@
     "message.loginmusic.play.others": "Playing music from %s",
     "message.loginmusic.play.not_allow_others": "Skip playing music from %s",
     "message.loginmusic.play.out_of_range": "Moving out of range, music playback has stopped!",
-    "message.loginmusic.play.ended": "Music ends: %s"
+    "message.loginmusic.play.ended": "Music ends: %s",
+    "message.loginmusic.play.error": "Failed to play music: %s"
 }

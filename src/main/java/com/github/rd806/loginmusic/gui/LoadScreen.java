@@ -82,8 +82,8 @@ public class LoadScreen extends Screen {
             case ERROR -> renderLyricError(graphics, centerX);
             case DOWNLOAD -> renderLyricDownload(graphics, centerX);
         }
-        // 自动关闭
-        if (audioStatus.equals(Status.COMPLETED) && lyricStatus.equals(Status.COMPLETED)) {
+        // 音频缓冲完成后立刻开始播放并关闭界面，歌词可以稍后继续加载
+        if (audioStatus.equals(Status.COMPLETED)) {
             onComplete.run();
         }
     }

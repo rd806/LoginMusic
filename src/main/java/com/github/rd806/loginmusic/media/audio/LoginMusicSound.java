@@ -15,15 +15,15 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
-import javax.sound.sampled.AudioFormat;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 交给 Minecraft 内置音频系统播放的音乐实例。
  * <p>
  * 声音资源本身并不存在于资源包中，{@link #resolve(SoundManager)} 和
  * {@link #getStream(SoundBufferLibrary, Sound, boolean)} 分别绕过资源包查找与
- * Ogg 解码，直接把内存中的 PCM 数据喂给 SoundEngine。
+ * Ogg 解码，直接把边下边播的 PCM 流喂给 SoundEngine。
  */
 @OnlyIn(Dist.CLIENT)
 public class LoginMusicSound extends AbstractSoundInstance {
@@ -43,13 +43,12 @@ public class LoginMusicSound extends AbstractSoundInstance {
     );
     private static final WeighedSoundEvents SOUND_EVENTS = createSoundEvents();
 
-    private final byte[] pcmData;
-    private final AudioFormat format;
+    private final StreamingAudioStream stream;
+    private final AtomicBoolean streamRequested = new AtomicBoolean();
 
-    public LoginMusicSound(PreparedAudio audio) {
+    public LoginMusicSound(StreamingAudioStream stream) {
         super(SOUND_LOCATION, SoundSource.MUSIC, SoundInstance.createUnseededRandom());
-        this.pcmData = audio.data();
-        this.format = audio.format();
+        this.stream = stream;
         // 提前设置，避免在 resolve 之前被其他模组读取音量时出现空指针
         this.sound = SOUND;
         this.volume = 1.0F;
@@ -73,6 +72,19 @@ public class LoginMusicSound extends AbstractSoundInstance {
 
     @Override
     public @NotNull CompletableFuture<AudioStream> getStream(@NotNull SoundBufferLibrary soundBuffers, @NotNull Sound sound, boolean looping) {
-        return CompletableFuture.completedFuture(new PcmAudioStream(pcmData, format));
+        if (streamRequested.compareAndSet(false, true)) {
+            return CompletableFuture.completedFuture(stream);
+        }
+        return CompletableFuture.failedFuture(new IllegalStateException("Audio stream has already been requested"));
+    }
+
+    // 停止播放时释放边下边播线程
+    public void releaseStream() {
+        stream.close();
+    }
+
+    // 流在播放过程中发生的错误
+    public Throwable getStreamError() {
+        return stream.getError();
     }
 }

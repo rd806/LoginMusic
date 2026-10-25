@@ -1,7 +1,7 @@
 package com.github.rd806.loginmusic.setup;
 
 import com.github.rd806.loginmusic.LoginMusic;
-import com.github.rd806.loginmusic.media.music.MusicConfig;
+import com.github.rd806.loginmusic.config.MusicConfig;
 import com.github.rd806.loginmusic.network.NetworkConfig;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;

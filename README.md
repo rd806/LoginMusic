@@ -61,7 +61,6 @@ If you enter a server with this mod, the config file on the server has higher pr
 ```json
 {
   "defaultMusic": {
-    "id": "Default",
     "musicName": "Default.mp3",
     "musicPath": "https://www.example.com/example.mp3",
     "lyricName": "Default.lrc",

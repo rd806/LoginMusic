@@ -40,25 +40,27 @@ public class SimpleMusicPlayer {
     private static boolean soundStarted = false;
     // 声音长时间未开始播放时的计数
     private static int inactiveTicks = 0;
+    // 音乐开始时间，用于歌词晚于音乐到达时计算进度
+    private static long musicStartTime;
 
-    // 播放音乐
-    public static void playMusic(MusicEntry music, PreparedAudio audio, String lyric) {
+    // 播放音乐（音频流已在后台预缓冲完成）
+    public static void playMusic(MusicEntry music, StreamingAudioStream stream, String lyric) {
         musicEntry = music;
         musicName = LoginMusic.removeExtension(music.getMusicName());
-        if (audio == null) {
+        if (stream == null) {
             LoginMusic.LOGGER.warn("Music audio not found!");
             return;
         }
-        startMusic(audio, lyric);
+        startMusic(stream, lyric);
         if (musicPlaying) {
             MusicInfo.playMusicInfo();
         }
     }
 
     // 使用 Minecraft 音频引擎播放
-    private static void startMusic(PreparedAudio preparedAudio, String lyric) {
+    private static void startMusic(StreamingAudioStream stream, String lyric) {
         try {
-            currentSound = new LoginMusicSound(preparedAudio);
+            currentSound = new LoginMusicSound(stream);
             soundStarted = false;
             inactiveTicks = 0;
             musicPlaying = true;
@@ -67,30 +69,55 @@ public class SimpleMusicPlayer {
                 mc.getSoundManager().stop(null, SoundSource.MUSIC);
             }
             mc.getSoundManager().play(currentSound);
-            // 播放歌词
-            startLyric(musicEntry, lyric, System.currentTimeMillis());
+            musicStartTime = System.currentTimeMillis();
+            // 歌词可能已经加载完成，也可能稍后通过 addLyrics 到达
+            if (lyric != null && !lyric.isEmpty()) {
+                startLyric(musicEntry, lyric);
+            }
         } catch (Exception e) {
             LoginMusic.LOGGER.error("Fail to play music with the Minecraft sound engine.", e);
             stopMusic();
         }
     }
 
+    // 歌词晚于音乐加载完成时调用
+    public static void addLyrics(String lyric) {
+        if (!musicPlaying || lyricPlaying || lyric == null || lyric.isEmpty()) {
+            return;
+        }
+        startLyric(musicEntry, lyric);
+    }
+
     // 播放歌词
-    private static void startLyric(MusicEntry entry, String lyric, long startTimeMillis) {
-        if (ClientConfig.ALLOW_LYRICS.get()) {
-            if (lyric != null && !lyric.isEmpty() && !lyricPlaying) {
-                List<LyricEntry> currentLyrics = LyricParser.parseLRC(lyric);
-                lyricPlaying = true;
-                // 计算展示歌词与播放开始的间隔时间，即已播放的时间
-                if (startTimeMillis > 0) {
-                    long elapsedTime = System.currentTimeMillis() - startTimeMillis;
-                    LyricPlayer.startLyricDisplay(currentLyrics, elapsedTime);
-                }
-            } else {
-                LoginMusic.LOGGER.warn("No lyrics found, {}", entry.getMusicName());
-            }
-        } else {
+    private static void startLyric(MusicEntry entry, String lyric) {
+        if (!ClientConfig.ALLOW_LYRICS.get()) {
             LoginMusic.LOGGER.info("Lyrics are not available!");
+            return;
+        }
+        if (lyricPlaying) {
+            return;
+        }
+        List<LyricEntry> currentLyrics = LyricParser.parseLRC(lyric);
+        if (currentLyrics.isEmpty()) {
+            LoginMusic.LOGGER.warn("No lyrics found, {}", entry.getMusicName());
+            return;
+        }
+        lyricPlaying = true;
+        // 计算展示歌词与播放开始的间隔时间，即已播放的时间
+        long elapsedTime = System.currentTimeMillis() - musicStartTime;
+        LyricPlayer.startLyricDisplay(currentLyrics, elapsedTime);
+    }
+
+    // 音频流出错
+    public static void onAudioError(Throwable error) {
+        LoginMusic.LOGGER.error("Login music audio stream failed", error);
+        boolean wasPlaying = musicPlaying;
+        String name = musicName;
+        stopMusic();
+        if (wasPlaying && mc.player != null) {
+            mc.player.displayClientMessage(
+                    Component.translatable("message.loginmusic.play.error", name),
+                    false);
         }
     }
 
@@ -112,6 +139,12 @@ public class SimpleMusicPlayer {
                 LoginMusic.LOGGER.info("Login music was not started by the sound engine, stop it.");
                 stopMusic();
             }
+            return;
+        }
+        // 网络流在播放中出错时优先提示错误
+        Throwable streamError = currentSound != null ? currentSound.getStreamError() : null;
+        if (streamError != null) {
+            onAudioError(streamError);
             return;
         }
         // 声道已停止，说明音乐自然播放结束
@@ -142,6 +175,8 @@ public class SimpleMusicPlayer {
     private static void stopMusic() {
         if (currentSound != null) {
             mc.getSoundManager().stop(currentSound);
+            // 关闭边下边播线程
+            currentSound.releaseStream();
             currentSound = null;
         }
         // 停止歌词
@@ -151,11 +186,12 @@ public class SimpleMusicPlayer {
         musicPlaying = false;
         soundStarted = false;
         inactiveTicks = 0;
-        LoadMethod.stopDownloading();
     }
 
     // 立即停止播放
     public static void stopCurrentMusic() {
+        // 取消仍在加载中的音乐
+        LoadMethod.stopDownloading();
         if (!musicPlaying && currentSound == null) { return; }
         stopMusic();
     }

@@ -1,6 +1,5 @@
 package com.github.rd806.loginmusic.media.music;
 
-import com.github.rd806.loginmusic.media.audio.PreparedAudio;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -13,22 +12,47 @@ import java.util.Set;
 @OnlyIn(Dist.CLIENT)
 public class MusicCache {
 
-    // 缓存
-    public static final MusicLRUCache<String, PreparedAudio> MUSIC_CACHE = new MusicLRUCache<>();
+    // 缓存（音频缓存保存原始压缩字节，边下边播完成后写入）
+    public static final MusicLRUCache<String, byte[]> MUSIC_CACHE = new MusicLRUCache<>();
     public static final MusicLRUCache<String, String> LYRIC_CACHE = new MusicLRUCache<>();
 
     // 放入
-    public static void putMusic(String key, PreparedAudio value) { MUSIC_CACHE.put(key, value); }
-    public static void putLyric(String key, String value) { LYRIC_CACHE.put(key, value); }
+    public static void putMusic(String key, byte[] value) {
+        synchronized (MUSIC_CACHE) {
+            MUSIC_CACHE.put(key, value);
+        }
+    }
+
+    public static void putLyric(String key, String value) {
+        synchronized (LYRIC_CACHE) {
+            LYRIC_CACHE.put(key, value);
+        }
+    }
 
     // 取出
-    public static PreparedAudio getMusic(String key) { return MUSIC_CACHE.get(key); }
-    public static String getLyric(String key) { return LYRIC_CACHE.get(key); }
+    public static byte[] getMusic(String key) {
+        synchronized (MUSIC_CACHE) {
+            return MUSIC_CACHE.get(key);
+        }
+    }
+
+    public static String getLyric(String key) {
+        synchronized (LYRIC_CACHE) {
+            return LYRIC_CACHE.get(key);
+        }
+    }
 
     // 查看缓存条目
     public static void showCache() {
-        Set<String> musicKeys = MUSIC_CACHE.keySet();
-        Set<String> lyricKeys = LYRIC_CACHE.keySet();
+        Set<String> musicKeys;
+        Set<String> lyricKeys;
+        synchronized (MUSIC_CACHE) {
+            musicKeys = Set.copyOf(MUSIC_CACHE.keySet());
+        }
+        synchronized (LYRIC_CACHE) {
+            lyricKeys = Set.copyOf(LYRIC_CACHE.keySet());
+        }
+
         Player player = Minecraft.getInstance().player;
         if (player == null) { return; }
         // 显示缓存的音乐
@@ -61,8 +85,12 @@ public class MusicCache {
 
     // 清除缓存
     public static void clearCache() {
-        MUSIC_CACHE.clear();
-        LYRIC_CACHE.clear();
+        synchronized (MUSIC_CACHE) {
+            MUSIC_CACHE.clear();
+        }
+        synchronized (LYRIC_CACHE) {
+            LYRIC_CACHE.clear();
+        }
 
         Player player = Minecraft.getInstance().player;
         if (player != null) {

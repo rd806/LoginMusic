@@ -59,14 +59,14 @@ public class ClientEvent {
                     false);
         }
 
-        // 启用下载模式
+        // 开始加载（边下边播）
         mc.execute(() -> {
-            // 创建并显示下载界面
+            // 创建并显示加载界面
             LoadScreen screen = new LoadScreen(music, () -> mc.execute(() -> mc.setScreen(null)));
             if (ClientConfig.SHOW_LOADING.get()) {
                 mc.setScreen(screen);
             }
-            LoadMethod.startDownload(music, screen);
+            LoadMethod.startStreaming(music, screen);
             MusicInfo.prepareMusicInfo(music);
         });
     }

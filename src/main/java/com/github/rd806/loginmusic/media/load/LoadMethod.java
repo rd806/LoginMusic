@@ -2,38 +2,52 @@ package com.github.rd806.loginmusic.media.load;
 
 import com.github.rd806.loginmusic.LoginMusic;
 import com.github.rd806.loginmusic.gui.LoadScreen;
-import com.github.rd806.loginmusic.media.audio.PreparedAudio;
-import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
 import com.github.rd806.loginmusic.gui.MusicInfo;
+import com.github.rd806.loginmusic.media.audio.SimpleMusicPlayer;
+import com.github.rd806.loginmusic.media.audio.StreamingAudioStream;
+import com.github.rd806.loginmusic.media.audio.TeeInputStream;
 import com.github.rd806.loginmusic.media.music.MusicCache;
 import com.github.rd806.loginmusic.media.music.MusicEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import org.jetbrains.annotations.NotNull;
 
-import javax.sound.sampled.*;
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.net.URLConnection;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 资源加载方法，新创建两个线程 {@code AUDIO_LOADER} 和 {@code LYRIC_LOADER}
+ * 音频以“边下边播”的方式加载：后台建立音频流并预缓冲一小段后即可开始播放，
+ * 不需要等待整个文件下载和解码完成。歌词独立下载，晚到时会按已播放时间接入。
  */
 @OnlyIn(Dist.CLIENT)
 public class LoadMethod {
 
     private static final Minecraft mc = Minecraft.getInstance();
-    private static LoadScreen loadScreen;
+    // 预缓冲秒数，越小开播越快，但网络抖动时更容易卡顿
+    private static final int PREBUFFER_SECONDS = 3;
+    private static final int READ_BUFFER_SIZE = 64 * 1024;
 
-    private static volatile PreparedAudio audio;
+    private static final Object LOAD_LOCK = new Object();
+    private static final AtomicInteger LOAD_ID = new AtomicInteger();
+
     private static volatile String lyric;
+    private static volatile StreamingAudioStream pendingStream;
+    private static CompletableFuture<Void> audioFuture;
+    private static CompletableFuture<Void> lyricFuture;
 
     // 音频加载线程
     public static final ExecutorService AUDIO_LOADER = Executors.newFixedThreadPool(2, r -> {
@@ -47,48 +61,153 @@ public class LoadMethod {
         t.setDaemon(true);
         return t;
     });
-    // 加载资源
-    private static CompletableFuture<Void> audioFuture;
-    private static CompletableFuture<Void> lyricFuture;
 
-    /* ----- 音乐下载方法 ----- */
-    // 开始下载
-    public static void startDownload(MusicEntry music, LoadScreen screen) {
-        loadScreen = screen;
-        // 创建两个 CompletableFuture 来跟踪下载任务
-        audioFuture = CompletableFuture.runAsync(() -> audio = downloadMusic(music, (downloaded, total, progress) -> {
-            Component status = Component.translatable("gui.loginmusic.load.progress.music",
-                    String.format("%.1f", downloaded / 1024.0 / 1024.0),
-                    String.format("%.1f", total / 1024.0 / 1024.0));
-            mc.execute(() -> screen.updateAudioProgress(progress, status));
-        }), AUDIO_LOADER);  // 使用 AUDIO_LOADER 作为执行器
+    // 开始加载音乐（边下边播）
+    public static void startStreaming(MusicEntry music, LoadScreen screen) {
+        lyric = null;
+        pendingStream = null;
+        int loadId = LOAD_ID.incrementAndGet();
 
-        lyricFuture = CompletableFuture.runAsync(() -> lyric = downloadLyrics(music, (downloaded, total, progress) -> {
-            Component status = Component.translatable("gui.loginmusic.load.progress.lyric",
-                    String.format("%.1f", downloaded / 1024.0 / 1024.0),
-                    String.format("%.1f", total / 1024.0 / 1024.0));
-            mc.execute(() -> screen.updateLyricProgress(progress, status));
-        }), LYRIC_LOADER);
+        // 歌词独立下载，不阻塞音乐开始播放
+        lyricFuture = CompletableFuture.runAsync(() -> {
+            String text = downloadLyrics(music, screen, (downloaded, total, progress) -> {
+                Component status = Component.translatable("gui.loginmusic.load.progress.lyric",
+                        String.format("%.1f", downloaded / 1024.0 / 1024.0),
+                        String.format("%.1f", total / 1024.0 / 1024.0));
+                mc.execute(() -> screen.updateLyricProgress(progress, status));
+            });
+            if (text == null || LOAD_ID.get() != loadId) {
+                return;
+            }
+            lyric = text;
+            mc.execute(() -> {
+                if (LOAD_ID.get() != loadId) {
+                    return;
+                }
+                screen.setLyricCompleted();
+                // 音乐可能已经开始播放，此时按已播放时长接入歌词
+                SimpleMusicPlayer.addLyrics(text);
+            });
+        }, LYRIC_LOADER);
 
-        // 等待两个任务都完成
-        CompletableFuture.allOf(audioFuture, lyricFuture)
-                .thenAccept(ignored -> {
-                    // 确保在 Minecraft 主线程中执行
+        // 音频：建立流、预缓冲，完成后立即开始播放
+        audioFuture = CompletableFuture.runAsync(() -> {
+            StreamingAudioStream stream = null;
+            try {
+                InputStream input = openAudioInput(music);
+                if (input == null) {
                     mc.execute(() -> {
-                        // 检查是否都完成了
-                        if (audio != null) {
-                            SimpleMusicPlayer.playMusic(music, audio, lyric);
-                        } else {
-                            LoginMusic.LOGGER.error("Could not load music!");
-                            MusicInfo.stopMusicInfo();
+                        if (LOAD_ID.get() != loadId) {
+                            return;
                         }
+                        screen.setAudioError("Audio not found!");
+                        SimpleMusicPlayer.onAudioError(new IOException("Audio input is not available"));
                     });
-                })
-                .exceptionally(throwable -> {
-                    // 错误处理
-                    LoginMusic.LOGGER.error("Failed to download music or lyrics", throwable);
-                    return null;
+                    return;
+                }
+                stream = new StreamingAudioStream(input, PREBUFFER_SECONDS,
+                        progress -> {
+                            Component status = Component.translatable("gui.loginmusic.load.buffering",
+                                    String.format("%.0f%%", progress * 100));
+                            mc.execute(() -> {
+                                if (LOAD_ID.get() != loadId) {
+                                    return;
+                                }
+                                screen.updateAudioProgress(progress, status);
+                                MusicInfo.setProgress(progress);
+                            });
+                        },
+                        error -> mc.execute(() -> {
+                            if (LOAD_ID.get() == loadId) {
+                                SimpleMusicPlayer.onAudioError(error);
+                            }
+                        })
+                );
+
+                StreamingAudioStream ready = stream;
+                synchronized (LOAD_LOCK) {
+                    if (LOAD_ID.get() != loadId) {
+                        ready.close();
+                        return;
+                    }
+                    pendingStream = ready;
+                }
+
+                mc.execute(() -> {
+                    synchronized (LOAD_LOCK) {
+                        if (LOAD_ID.get() != loadId) {
+                            ready.close();
+                            return;
+                        }
+                        pendingStream = null;
+                    }
+                    screen.setAudioCompleted();
+                    // 极端情况下可能已有另一首音乐开始播放，避免两首同时播放
+                    if (SimpleMusicPlayer.isPlaying()) {
+                        ready.close();
+                        return;
+                    }
+                    SimpleMusicPlayer.playMusic(music, ready, lyric);
                 });
+            } catch (Throwable throwable) {
+                if (stream != null) {
+                    stream.close();
+                }
+                LoginMusic.LOGGER.error("Failed to open the audio stream", throwable);
+                mc.execute(() -> {
+                    if (LOAD_ID.get() != loadId) {
+                        return;
+                    }
+                    screen.setAudioError("Downloading error!");
+                    SimpleMusicPlayer.onAudioError(throwable);
+                });
+            }
+        }, AUDIO_LOADER);
+    }
+
+    // 打开音频输入：内存缓存 > 本地缓存文件 > 本地绝对路径 > 网络 URL
+    private static InputStream openAudioInput(MusicEntry music) throws IOException {
+        String name = music.getMusicName();
+        String path = music.getMusicPath();
+
+        byte[] cached = MusicCache.getMusic(path);
+        if (cached != null) {
+            LoginMusic.LOGGER.info("Use cached audio for {}", path);
+            return new ByteArrayInputStream(cached);
+        }
+
+        if (name != null && !name.isEmpty()) {
+            Path local = LoginMusic.MUSICS_DIR.resolve(name);
+            if (Files.isRegularFile(local)) {
+                LoginMusic.LOGGER.info("Streaming local audio {}", local);
+                return new BufferedInputStream(Files.newInputStream(local), READ_BUFFER_SIZE);
+            }
+        }
+
+        if (path != null && !path.isEmpty()) {
+            try {
+                Path direct = Paths.get(path);
+                if (Files.isRegularFile(direct)) {
+                    LoginMusic.LOGGER.info("Streaming local audio {}", direct);
+                    return new BufferedInputStream(Files.newInputStream(direct), READ_BUFFER_SIZE);
+                }
+            } catch (InvalidPathException ignored) {
+                // 不是本地路径，按 URL 处理
+            }
+        }
+
+        URLConnection connection = openConnection(path);
+        if (connection == null) {
+            return null;
+        }
+        long totalBytes = connection.getContentLengthLong();
+        InputStream raw = connection.getInputStream();
+        if ("file".equals(connection.getURL().getProtocol())) {
+            return new BufferedInputStream(raw, READ_BUFFER_SIZE);
+        }
+        // 网络音频：边读边缓存原始字节，整首播放完后可供下次直接使用
+        TeeInputStream tee = new TeeInputStream(raw, totalBytes, bytes -> MusicCache.putMusic(path, bytes));
+        return new BufferedInputStream(tee, READ_BUFFER_SIZE);
     }
 
     // 进度回调
@@ -98,10 +217,12 @@ public class LoadMethod {
     }
 
     private static URLConnection openConnection(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
         try {
             URI uri = new URI(path);
-            URL url = uri.toURL();
-            URLConnection connection = url.openConnection();
+            URLConnection connection = uri.toURL().openConnection();
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(30000);
             connection.setRequestProperty("User-Agent", "LoginMusic");
@@ -112,99 +233,18 @@ public class LoadMethod {
         return null;
     }
 
-    // 音乐下载方法
-    private static PreparedAudio downloadMusic(MusicEntry music, DownloadCallback callback) {
-        String name = music.getMusicName();
-        String path = music.getMusicPath();
-        try {
-            PreparedAudio audio = MusicCache.getMusic(path);
-
-            if (audio != null) {
-                mc.execute(loadScreen::setAudioCompleted);
-                return audio;
-            }
-
-            // 检查缓存，命中直接返回
-            Path cacheFile = LoginMusic.MUSICS_DIR.resolve(name);
-            if (isDownloaded(cacheFile, callback)) {
-                LoginMusic.LOGGER.info("The file has been downloaded!");
-                // 读取文件所有字节到 byte[]
-                byte[] data = Files.readAllBytes(cacheFile);
-                // 检查文件
-                if (!TypeDetector.isAudioMagic(data, data.length)) {
-                    LoginMusic.LOGGER.warn("Not an audio file!");
-                    mc.execute(() -> loadScreen.setAudioError("Not an audio file!"));
-                    return null;
-                }
-                // 包装为 ByteArrayInputStream
-                ByteArrayInputStream bais = new ByteArrayInputStream(data);
-                audio = prepareAudio(bais);
-                MusicCache.putMusic(path, audio);
-                mc.execute(loadScreen::setAudioCompleted);
-                return audio;
-            }
-
-            // 从网络加载
-            LoginMusic.LOGGER.info("Start downloading music from {}", path);
-            URLConnection connection = openConnection(path);
-            if (connection == null) {
-                LoginMusic.LOGGER.error("Audio network connection error!");
-                mc.execute(() -> loadScreen.setAudioError("Downloading error!"));
-                return null;
-            }
-            // 获取文件大小
-            long totalBytes = connection.getContentLengthLong();
-            LoginMusic.LOGGER.info("Music size: {} bytes", totalBytes);
-
-            InputStream inputStream = connection.getInputStream();
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            long downloadedBytes = 0;
-
-            // 加载文件
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                baos.write(buffer, 0, bytesRead);
-                downloadedBytes += bytesRead;
-                // 回调进度
-                if (callback != null) {
-                    float progress = totalBytes > 0 ? downloadedBytes / (float) totalBytes : 0;
-                    callback.onProgress(downloadedBytes, totalBytes, progress);
-                    MusicInfo.setProgress(progress);
-                }
-            }
-            // 转换为输入流
-            byte[] data = baos.toByteArray();
-            // 检查文件
-            if (!TypeDetector.isAudioMagic(data, data.length)) {
-                LoginMusic.LOGGER.warn("Not an audio file!");
-                mc.execute(() -> loadScreen.setAudioError("Not an audio file!"));
-                return null;
-            }
-            // 移除下载到本地功能
-            ByteArrayInputStream bais = new ByteArrayInputStream(data);
-            LoginMusic.LOGGER.info("Downloading music completed, total {} bytes", downloadedBytes);
-            audio = prepareAudio(bais);
-            MusicCache.putMusic(path, audio);
-            mc.execute(loadScreen::setAudioCompleted);
-
-            return audio;
-        } catch (Exception e) {
-            LoginMusic.LOGGER.warn("Downloading music error!", e);
-            mc.execute(() -> loadScreen.setAudioError("Downloading error!"));
-            return null;
-        }
-    }
-
     // 歌词下载方法
-    private static String downloadLyrics(MusicEntry music, DownloadCallback callback) {
+    private static String downloadLyrics(MusicEntry music, LoadScreen screen, DownloadCallback callback) {
         String name = music.getLyricName();
         String path = music.getLyricPath();
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
         try {
             String lyric = MusicCache.getLyric(path);
 
             if (lyric != null) {
-                mc.execute(loadScreen::setLyricCompleted);
+                mc.execute(screen::setLyricCompleted);
                 return lyric;
             }
 
@@ -215,11 +255,11 @@ public class LoadMethod {
                     LoginMusic.LOGGER.info("Lyric file loaded");
                     lyric = Files.readString(cacheFile);
                     MusicCache.putLyric(path, lyric);
-                    mc.execute(loadScreen::setLyricCompleted);
+                    mc.execute(screen::setLyricCompleted);
                     return lyric;
                 } catch (Exception e) {
                     LoginMusic.LOGGER.error("Error while loading Lyric from {}", path, e);
-                    mc.execute(() -> loadScreen.setLyricError("Downloading error!"));
+                    mc.execute(() -> screen.setLyricError("Downloading error!"));
                     return null;
                 }
             }
@@ -229,7 +269,7 @@ public class LoadMethod {
             URLConnection connection = openConnection(path);
             if (connection == null) {
                 LoginMusic.LOGGER.error("Lyric network connection error!");
-                mc.execute(() -> loadScreen.setLyricError("Downloading error!"));
+                mc.execute(() -> screen.setLyricError("Downloading error!"));
                 return null;
             }
 
@@ -259,11 +299,11 @@ public class LoadMethod {
             lyric = new String(data, charset);
             MusicCache.putLyric(path, lyric);
             LoginMusic.LOGGER.info("Downloading lyric completed, total {} bytes", downloadedBytes);
-            mc.execute(loadScreen::setLyricCompleted);
+            mc.execute(screen::setLyricCompleted);
             return lyric;
         } catch (Exception e) {
             LoginMusic.LOGGER.warn("Downloading lyric error!", e);
-            mc.execute(() -> loadScreen.setLyricError("Downloading error!"));
+            mc.execute(() -> screen.setLyricError("Downloading error!"));
             return null;
         }
     }
@@ -271,7 +311,7 @@ public class LoadMethod {
     // 检查是否有本地缓存
     private static boolean isDownloaded(Path cacheFile, DownloadCallback callback) {
         try {
-            if (Files.exists(cacheFile) && callback != null) {
+            if (Files.isRegularFile(cacheFile) && callback != null) {
                 long size = Files.size(cacheFile);
                 callback.onProgress(size, size, 1.0f);
                 return true;
@@ -283,51 +323,17 @@ public class LoadMethod {
         }
     }
 
-    // 停止加载线程
+    // 停止加载线程并关闭尚未开始播放的音频流
     public static void stopDownloading() {
+        LOAD_ID.incrementAndGet();
         if (audioFuture != null) { audioFuture.cancel(true); }
         if (lyricFuture != null) { lyricFuture.cancel(true); }
-        LoginMusic.LOGGER.info("Stop downloading!");
-    }
-
-    // 准备外部音乐
-    private static PreparedAudio prepareAudio(ByteArrayInputStream inputStream) {
-        try {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(inputStream);
-            // 转换格式
-            AudioFormat sourceFormat = audioInputStream.getFormat();
-            AudioFormat targetFormat = getTargetFormat(sourceFormat);
-            if (!sourceFormat.matches(targetFormat)) {
-                audioInputStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream);
+        synchronized (LOAD_LOCK) {
+            if (pendingStream != null) {
+                pendingStream.close();
+                pendingStream = null;
             }
-            // 预加载音频数据到字节数组，供 Minecraft 音频引擎流式读取
-            byte[] audioData = audioInputStream.readAllBytes();
-            LoginMusic.LOGGER.info("Audio data prepared!");
-            return new PreparedAudio(audioData, targetFormat);
-        } catch (UnsupportedAudioFileException e) {
-            LoginMusic.LOGGER.error("Unsupported type: {}", e.getMessage());
-            return null;
-        } catch (Exception e) {
-            LoginMusic.LOGGER.error("Fail to play music");
-            return null;
         }
-    }
-
-    private static @NotNull AudioFormat getTargetFormat(AudioFormat sourceFormat) throws UnsupportedAudioFileException {
-        float sampleRate = sourceFormat.getSampleRate();
-        if (sampleRate <= 0) {
-            throw new UnsupportedAudioFileException("Unknown sample rate");
-        }
-        // Minecraft 的 OpenAL 只支持单声道/立体声的 16 位 PCM
-        int channels = Math.min(2, sourceFormat.getChannels());
-        return new AudioFormat(
-                AudioFormat.Encoding.PCM_SIGNED,
-                sampleRate,
-                16,
-                channels,
-                channels * 2,
-                sampleRate,
-                false
-        );
+        LoginMusic.LOGGER.info("Stop loading!");
     }
 }

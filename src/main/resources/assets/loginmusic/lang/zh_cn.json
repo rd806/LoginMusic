@@ -25,6 +25,7 @@
     "gui.loginmusic.load.tooltip": "按 ESC 键可转为后台加载",
     "gui.loginmusic.load.progress.music": "加载音乐中 ... %.1f MB / %.1f MB",
     "gui.loginmusic.load.progress.lyric": "加载歌词中 ... %.1f MB / %.1f MB",
+    "gui.loginmusic.load.buffering": "正在缓冲音乐 ... %s",
 
     "gui.loginmusic.info.prepare": "正在准备：%s（%.1f%%）",
     "gui.loginmusic.info.play": "正在播放：%s",
@@ -53,6 +54,8 @@
 
     "config.loginmusic.music.id": "音乐选择的关键字",
     "config.loginmusic.music.id.tooltip": "可选：name/uuid/random",
+    "config.loginmusic.music.broadcast": "广播入场音乐",
+    "config.loginmusic.music.broadcast.tooltip": "当新玩家加入时是否全服广播入场音乐",
 
     "message.loginmusic.command.cache.music.empty": "音乐缓存为空！",
     "message.loginmusic.command.cache.music.info": "音乐缓存如下：",
@@ -74,5 +77,6 @@
     "message.loginmusic.play.others": "播放来自 %s 的音乐",
     "message.loginmusic.play.not_allow_others": "跳过来自 %s 的音乐",
     "message.loginmusic.play.out_of_range": "移动超出范围，已停止音乐播放！",
-    "message.loginmusic.play.ended": "播放结束：%s"
+    "message.loginmusic.play.ended": "播放结束：%s",
+    "message.loginmusic.play.error": "音乐播放失败：%s"
 }

@@ -1,8 +1,11 @@
-package com.github.rd806.loginmusic.media.music;
+package com.github.rd806.loginmusic.config;
 
+import com.github.rd806.loginmusic.media.music.MusicEntry;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.github.rd806.loginmusic.LoginMusic;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.IOException;
@@ -87,10 +90,17 @@ public class MusicConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
-                JsonWrapper wrapper = new JsonWrapper();
-                wrapper.defaultMusic = DEFAULT_MUSIC;
-                wrapper.musics = MUSIC_ENTRY_LIST;
-                GSON.toJson(wrapper, writer);
+                JsonObject root = new JsonObject();
+                // 默认音乐的 id 恒为 "Default" 且不会被使用，无需写入配置文件
+                JsonElement defaultMusicJson = DEFAULT_MUSIC == null
+                        ? new JsonObject()
+                        : GSON.toJsonTree(DEFAULT_MUSIC);
+                if (defaultMusicJson.isJsonObject()) {
+                    defaultMusicJson.getAsJsonObject().remove("id");
+                }
+                root.add("defaultMusic", defaultMusicJson);
+                root.add("musics", GSON.toJsonTree(MUSIC_ENTRY_LIST));
+                GSON.toJson(root, writer);
             }
             // 保存后通知现有的 MusicConfig 重新加载
             loadFromConfig();
