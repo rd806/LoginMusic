@@ -292,6 +292,7 @@ public class StreamingAudioStream implements AudioStream {
         try {
             closeable.close();
         } catch (IOException ignored) {
+            // 关闭音频
         }
     }
 }

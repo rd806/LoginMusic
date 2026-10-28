@@ -20,7 +20,7 @@ import java.util.List;
 public class ClothConfigGUI {
 
     public static ConfigBuilder buildScreen() {
-
+        // 通用设置
         ConfigBuilder builder = ConfigBuilder.create().setTitle(Component.translatable("cloth.loginmusic.title"));
         builder.setGlobalized(true);
         builder.setGlobalizedExpanded(false);
@@ -124,7 +124,9 @@ public class ClothConfigGUI {
         return subCategoryBuilder.build();
     }
 
-    // 客户端配置
+    /**
+     * 客户端配置
+     */
     private static void buildClientSettings(ConfigEntryBuilder entryBuilder, ConfigCategory clientSettings) {
         // 显示加载界面
         clientSettings.addEntry(
@@ -184,12 +186,23 @@ public class ClothConfigGUI {
                         .build());
     }
 
+    /**
+     * 服务端配置
+     */
     private static void buildServerSettings(ConfigEntryBuilder entryBuilder, ConfigCategory serverSettings) {
+        // 音乐选择的关键字
         serverSettings.addEntry(
                 entryBuilder.startEnumSelector(Component.translatable("config.loginmusic.music.id"), SelectionKey.class, ServerConfig.MUSIC_ID_TYPE.get())
                         .setDefaultValue(SelectionKey.NAME)
                         .setTooltip(Component.translatable("config.loginmusic.music.id.tooltip"))
                         .setSaveConsumer(selectionKey -> ServerConfig.MUSIC_ID_TYPE.set(selectionKey))
+                        .build());
+        // 是否广播音乐
+        serverSettings.addEntry(
+                entryBuilder.startBooleanToggle(Component.translatable("config.loginmusic.music.broadcast"), ServerConfig.MUSIC_BROADCAST.get())
+                        .setDefaultValue(true)
+                        .setTooltip(Component.translatable("config.loginmusic.music.broadcast"))
+                        .setSaveConsumer(allowBroadcast -> ServerConfig.MUSIC_BROADCAST.set(allowBroadcast))
                         .build());
     }
 }

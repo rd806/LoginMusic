@@ -38,13 +38,15 @@ public class ServerEvent {
     public static void playMusic(MusicEntry music, ServerPlayer player, SelectionKey key) {
         MinecraftServer server = player.getServer();
         // 将音乐发送给全体玩家
-        if (server != null) {
+        if (server != null && ServerConfig.MUSIC_BROADCAST.get()) {
             PlayerList playerList = server.getPlayerList();
             for (ServerPlayer target : playerList.getPlayers()) {
                 BlockPos pos = target.blockPosition();
-                LoginMusic.LOGGER.info("Send music {} to {}", music.getMusicName(), player.getName().getString());
                 NetworkConfig.sendMusicToPlayer(target, pos, music, key);
             }
+        } else {
+            BlockPos pos = player.blockPosition();
+            NetworkConfig.sendMusicToPlayer(player, pos, music, key);
         }
     }
 

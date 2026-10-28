@@ -22,7 +22,7 @@ public class ServerConfig {
         MUSIC_BROADCAST = BUILDER
                 .comment("Broadcast login music to every player")
                 .translation("config.loginmusic.music.broadcast")
-                .define("broadcast", false);
+                .define("broadcast", true);
         return BUILDER.build();
     }
 }

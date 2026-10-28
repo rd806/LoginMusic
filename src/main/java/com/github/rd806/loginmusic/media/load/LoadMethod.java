@@ -21,9 +21,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,15 +60,40 @@ public class LoadMethod {
         return t;
     });
 
-    // 开始加载音乐（边下边播）
+    // 进度回调
+    @FunctionalInterface
+    private interface DownloadCallback {
+        void onProgress(long downloadedBytes, long totalBytes, float progress);
+    }
+
+    private static URLConnection openConnection(String path) {
+        if (path == null || path.isEmpty()) {
+            return null;
+        }
+        try {
+            URI uri = new URI(path);
+            URLConnection connection = uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(30000);
+            connection.setRequestProperty("User-Agent", "LoginMusic");
+            return connection;
+        } catch (Exception ex) {
+            LoginMusic.LOGGER.error("Failed to open URL", ex);
+        }
+        return null;
+    }
+
+    /**
+     * 开始加载音乐（边下边播）
+     */
     public static void startStreaming(MusicEntry music, LoadScreen screen) {
         lyric = null;
         pendingStream = null;
         int loadId = LOAD_ID.incrementAndGet();
 
-        // 歌词独立下载，不阻塞音乐开始播放
+        // 歌词：独立下载，不阻塞音乐开始播放
         lyricFuture = CompletableFuture.runAsync(() -> {
-            String text = downloadLyrics(music, screen, (downloaded, total, progress) -> {
+            String text = openLyrics(music, screen, (downloaded, total, progress) -> {
                 Component status = Component.translatable("gui.loginmusic.load.progress.lyric",
                         String.format("%.1f", downloaded / 1024.0 / 1024.0),
                         String.format("%.1f", total / 1024.0 / 1024.0));
@@ -165,17 +188,21 @@ public class LoadMethod {
         }, AUDIO_LOADER);
     }
 
-    // 打开音频输入：内存缓存 > 本地缓存文件 > 本地绝对路径 > 网络 URL
+    /**
+     * 打开音频输入：
+     * <br>
+     * 内存缓存 > 本地缓存文件 > 网络 URL
+     */
     private static InputStream openAudioInput(MusicEntry music) throws IOException {
         String name = music.getMusicName();
         String path = music.getMusicPath();
-
+        // 先读取缓存
         byte[] cached = MusicCache.getMusic(path);
         if (cached != null) {
             LoginMusic.LOGGER.info("Use cached audio for {}", path);
             return new ByteArrayInputStream(cached);
         }
-
+        // 本地缓存
         if (name != null && !name.isEmpty()) {
             Path local = LoginMusic.MUSICS_DIR.resolve(name);
             if (Files.isRegularFile(local)) {
@@ -183,19 +210,7 @@ public class LoadMethod {
                 return new BufferedInputStream(Files.newInputStream(local), READ_BUFFER_SIZE);
             }
         }
-
-        if (path != null && !path.isEmpty()) {
-            try {
-                Path direct = Paths.get(path);
-                if (Files.isRegularFile(direct)) {
-                    LoginMusic.LOGGER.info("Streaming local audio {}", direct);
-                    return new BufferedInputStream(Files.newInputStream(direct), READ_BUFFER_SIZE);
-                }
-            } catch (InvalidPathException ignored) {
-                // 不是本地路径，按 URL 处理
-            }
-        }
-
+        // 网络 URL
         URLConnection connection = openConnection(path);
         if (connection == null) {
             return null;
@@ -210,31 +225,8 @@ public class LoadMethod {
         return new BufferedInputStream(tee, READ_BUFFER_SIZE);
     }
 
-    // 进度回调
-    @FunctionalInterface
-    private interface DownloadCallback {
-        void onProgress(long downloadedBytes, long totalBytes, float progress);
-    }
-
-    private static URLConnection openConnection(String path) {
-        if (path == null || path.isEmpty()) {
-            return null;
-        }
-        try {
-            URI uri = new URI(path);
-            URLConnection connection = uri.toURL().openConnection();
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(30000);
-            connection.setRequestProperty("User-Agent", "LoginMusic");
-            return connection;
-        } catch (Exception ex) {
-            LoginMusic.LOGGER.error("Failed to open URL", ex);
-        }
-        return null;
-    }
-
-    // 歌词下载方法
-    private static String downloadLyrics(MusicEntry music, LoadScreen screen, DownloadCallback callback) {
+    // 歌词下载
+    private static String openLyrics(MusicEntry music, LoadScreen screen, DownloadCallback callback) {
         String name = music.getLyricName();
         String path = music.getLyricPath();
         if (name == null || name.isEmpty()) {
@@ -242,7 +234,6 @@ public class LoadMethod {
         }
         try {
             String lyric = MusicCache.getLyric(path);
-
             if (lyric != null) {
                 mc.execute(screen::setLyricCompleted);
                 return lyric;
@@ -263,7 +254,6 @@ public class LoadMethod {
                     return null;
                 }
             }
-
             // 从网络加载
             LoginMusic.LOGGER.info("Start downloading lyrics from {}", path);
             URLConnection connection = openConnection(path);
@@ -276,7 +266,6 @@ public class LoadMethod {
             // 获取文件大小
             long totalBytes = connection.getContentLengthLong();
             LoginMusic.LOGGER.info("Lyrics size: {} bytes", totalBytes);
-
             // 下载文件
             InputStream inputStream = connection.getInputStream();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
